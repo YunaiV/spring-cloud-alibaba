@@ -26,8 +26,13 @@ import java.util.Set;
  */
 public class ServiceRestMetadata {
 
+    /**
+     * 服务名
+     */
     private String name;
-
+    /**
+     * Rest 方法元数据
+     */
     private Set<RestMethodMetadata> meta;
 
     public String getName() {

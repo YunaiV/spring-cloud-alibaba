@@ -18,23 +18,18 @@ package org.springframework.cloud.alibaba.dubbo.metadata.repository;
 
 import com.alibaba.dubbo.config.spring.ReferenceBean;
 import com.alibaba.dubbo.rpc.service.GenericService;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.alibaba.dubbo.metadata.MethodMetadata;
 import org.springframework.cloud.alibaba.dubbo.metadata.RequestMetadata;
 import org.springframework.cloud.alibaba.dubbo.metadata.ServiceRestMetadata;
 import org.springframework.cloud.alibaba.dubbo.metadata.service.MetadataConfigService;
+import org.springframework.cloud.alibaba.dubbo.registry.SpringCloudRegistry;
 import org.springframework.stereotype.Repository;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-
-import static org.springframework.cloud.alibaba.dubbo.registry.SpringCloudRegistry.getServiceGroup;
-import static org.springframework.cloud.alibaba.dubbo.registry.SpringCloudRegistry.getServiceInterface;
-import static org.springframework.cloud.alibaba.dubbo.registry.SpringCloudRegistry.getServiceSegments;
-import static org.springframework.cloud.alibaba.dubbo.registry.SpringCloudRegistry.getServiceVersion;
 
 /**
  * Dubbo Service Metadata {@link Repository}
@@ -45,28 +40,36 @@ import static org.springframework.cloud.alibaba.dubbo.registry.SpringCloudRegist
 public class DubboServiceMetadataRepository {
 
     /**
+     * RequestMetadata 和 ReferenceBean 的映射
+     *
      * Key is application name
      * Value is  Map<RequestMetadata, ReferenceBean<GenericService>>
      */
     private Map<String, Map<RequestMetadata, ReferenceBean<GenericService>>> referenceBeansRepository = new HashMap<>();
 
+    /**
+     * RequestMetadata 和 MethodMetadata 的映射
+     *
+     * Key is application name
+     */
     private Map<String, Map<RequestMetadata, MethodMetadata>> methodMetadataRepository = new HashMap<>();
 
     @Autowired
     private MetadataConfigService metadataConfigService;
 
     public void updateMetadata(String serviceName) {
-
+        // 获得 serviceName 对应的 RequestMetadata 和 ReferenceBean 的映射
         Map<RequestMetadata, ReferenceBean<GenericService>> genericServicesMap = referenceBeansRepository.computeIfAbsent(serviceName, k -> new HashMap<>());
-
+        // 获得 serviceName 对应的 RequestMetadata 和 MethodMetadata 的映射
         Map<RequestMetadata, MethodMetadata> methodMetadataMap = methodMetadataRepository.computeIfAbsent(serviceName, k -> new HashMap<>());
-
+        // 获得 serviceName 对应的  ServiceRestMetadata 集合
         Set<ServiceRestMetadata> serviceRestMetadataSet = metadataConfigService.getServiceRestMetadata(serviceName);
 
+        // 遍历 ServiceRestMetadata 集合，创建对应的 ReferenceBean ，获得对应的 MethodMetadata 对象
         for (ServiceRestMetadata serviceRestMetadata : serviceRestMetadataSet) {
-
+            // 创建对应的 ReferenceBean
             ReferenceBean<GenericService> referenceBean = adaptReferenceBean(serviceRestMetadata);
-
+            // 遍历 RestMethodMetadata 集合，添加到 genericServicesMap 和 methodMetadataMap 中，进行缓存
             serviceRestMetadata.getMeta().forEach(restMethodMetadata -> {
                 RequestMetadata requestMetadata = restMethodMetadata.getRequest();
                 genericServicesMap.put(requestMetadata, referenceBean);
@@ -84,18 +87,19 @@ public class DubboServiceMetadataRepository {
     }
 
     private ReferenceBean<GenericService> adaptReferenceBean(ServiceRestMetadata serviceRestMetadata) {
+        // 获得相应的属性
         String dubboServiceName = serviceRestMetadata.getName();
-        String[] segments = getServiceSegments(dubboServiceName);
-        String interfaceName = getServiceInterface(segments);
-        String version = getServiceVersion(segments);
-        String group = getServiceGroup(segments);
+        String[] segments = SpringCloudRegistry.getServiceSegments(dubboServiceName);
+        String interfaceName = SpringCloudRegistry.getServiceInterface(segments);
+        String version = SpringCloudRegistry.getServiceVersion(segments);
+        String group = SpringCloudRegistry.getServiceGroup(segments);
 
+        // 创建 ReferenceBean 对象，并设置相关属性
         ReferenceBean<GenericService> referenceBean = new ReferenceBean<GenericService>();
         referenceBean.setGeneric(true);
         referenceBean.setInterface(interfaceName);
         referenceBean.setVersion(version);
         referenceBean.setGroup(group);
-
         return referenceBean;
     }
 

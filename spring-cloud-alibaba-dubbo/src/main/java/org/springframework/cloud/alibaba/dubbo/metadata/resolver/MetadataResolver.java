@@ -32,6 +32,8 @@ public interface MetadataResolver {
     /**
      * Resolve the {@link ServiceRestMetadata} {@link Set set} from {@link ServiceBean}
      *
+     * 解析指定 ServiceBean 的 ServiceRestMetadata 集合
+     *
      * @param serviceBean {@link ServiceBean}
      * @return non-null {@link Set}
      */
@@ -40,8 +42,11 @@ public interface MetadataResolver {
     /**
      * Resolve {@link RestMethodMetadata} {@link Set set} from {@link Class target type}
      *
+     * 解析指定类的 ServiceRestMetadata 集合
+     *
      * @param targetType {@link Class target type}
      * @return non-null {@link Set}
      */
     Set<RestMethodMetadata> resolveMethodRestMetadata(Class<?> targetType);
+
 }

@@ -27,12 +27,12 @@ import org.springframework.context.ConfigurableApplicationContext;
  *
  * @author <a href="mailto:mercyblitz@gmail.com">Mercy</a>
  */
-public class DubboServiceRegistrationApplicationContextInitializer implements
-        ApplicationContextInitializer<ConfigurableApplicationContext> {
+public class DubboServiceRegistrationApplicationContextInitializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
 
     @Override
     public void initialize(ConfigurableApplicationContext applicationContext) {
         // Set ApplicationContext into SpringCloudRegistryFactory before Dubbo Service Register
         SpringCloudRegistryFactory.setApplicationContext(applicationContext);
     }
+
 }

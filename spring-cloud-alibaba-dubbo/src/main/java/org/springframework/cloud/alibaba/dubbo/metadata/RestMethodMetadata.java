@@ -25,10 +25,17 @@ import java.util.Objects;
  */
 public class RestMethodMetadata {
 
+    /**
+     * 方法元数据
+     */
     private MethodMetadata method;
-
+    /**
+     * 请求元数据
+     */
     private RequestMetadata request;
-
+    /**
+     * TODO
+     */
     private Map<Integer, Collection<String>> indexToName;
 
     public MethodMetadata getMethod() {

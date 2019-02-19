@@ -38,12 +38,16 @@ public class SpringCloudRegistryFactory implements RegistryFactory {
 
     @Override
     public Registry getRegistry(URL url) {
+        // 获得 ServiceRegistry 对象
         ServiceRegistry<Registration> serviceRegistry = applicationContext.getBean(ServiceRegistry.class);
+        // 获得 DiscoveryClient 对象
         DiscoveryClient discoveryClient = applicationContext.getBean(DiscoveryClient.class);
+        // 创建 SpringCloudRegistry 对象
         return new SpringCloudRegistry(url, serviceRegistry, discoveryClient);
     }
 
     public static void setApplicationContext(ApplicationContext applicationContext) {
         SpringCloudRegistryFactory.applicationContext = applicationContext;
     }
+
 }

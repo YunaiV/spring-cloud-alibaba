@@ -47,23 +47,24 @@ public class DubboInvocationHandler implements InvocationHandler {
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-
+        // 获得 GenericService 对象
         GenericService genericService = genericServicesMap.get(method);
-
+        // 获得 MethodMetadata 对象
         MethodMetadata methodMetadata = this.methodMetadata.get(method);
 
+        // 情况一，如果任一不存在，使用默认的 defaultInvocationHandler
         if (genericService == null || methodMetadata == null) {
             return defaultInvocationHandler.invoke(proxy, method, args);
         }
 
-        String methodName = methodMetadata.getName();
-
+        // 情况二，执行泛化调用
+        String methodName = methodMetadata.getName(); // 方法名
         String[] parameterTypes = methodMetadata
                 .getParams()
                 .stream()
                 .map(MethodParameterMetadata::getType)
-                .toArray(String[]::new);
-
+                .toArray(String[]::new); // 参数类型
         return genericService.$invoke(methodName, parameterTypes, args);
     }
+
 }

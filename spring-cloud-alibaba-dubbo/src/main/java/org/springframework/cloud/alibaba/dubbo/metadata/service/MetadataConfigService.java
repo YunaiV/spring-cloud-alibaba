@@ -27,7 +27,20 @@ import java.util.Set;
  */
 public interface MetadataConfigService {
 
+    /**
+     * 发布指定服务的 Rest 元数据
+     *
+     * @param serviceName 服务名
+     * @param serviceRestMetadata ServiceRestMetadata 集合
+     */
     void publishServiceRestMetadata(String serviceName, Set<ServiceRestMetadata> serviceRestMetadata);
 
+    /**
+     * 获得指定服务的 Rest 元数据
+     *
+     * @param serviceName 服务名
+     * @return ServiceRestMetadata 集合
+     */
     Set<ServiceRestMetadata> getServiceRestMetadata(String serviceName);
+
 }

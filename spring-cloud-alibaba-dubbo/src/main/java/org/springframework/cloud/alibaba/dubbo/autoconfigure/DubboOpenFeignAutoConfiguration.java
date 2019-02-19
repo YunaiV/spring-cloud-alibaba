@@ -38,21 +38,21 @@ import org.springframework.core.env.Environment;
  *
  * @author <a href="mailto:mercyblitz@gmail.com">Mercy</a>
  */
-@ConditionalOnClass(value = Feign.class)
-@AutoConfigureAfter(FeignAutoConfiguration.class)
+@ConditionalOnClass(value = Feign.class) // 存在 Feign 类的时候，即存在 feign 依赖
+@AutoConfigureAfter(FeignAutoConfiguration.class) // 在 FeignAutoConfiguration 配置类之后初始化
 @Configuration
 public class DubboOpenFeignAutoConfiguration {
 
     @Value("${spring.application.name}")
     private String currentApplicationName;
 
-    @Bean
+    @Bean // 创建 DubboServiceBeanMetadataResolver 对象
     @ConditionalOnMissingBean
     public MetadataResolver metadataJsonResolver(ObjectProvider<Contract> contract) {
         return new DubboServiceBeanMetadataResolver(currentApplicationName, contract);
     }
 
-    @Bean
+    @Bean // 创建 TargeterBeanPostProcessor 对象
     public TargeterBeanPostProcessor targeterBeanPostProcessor(Environment environment,
                                                                DubboServiceMetadataRepository dubboServiceMetadataRepository) {
         return new TargeterBeanPostProcessor(environment, dubboServiceMetadataRepository);

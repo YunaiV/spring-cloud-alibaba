@@ -21,7 +21,7 @@ import com.alibaba.dubbo.config.spring.context.event.ServiceBeanExportedEvent;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.cloud.alibaba.dubbo.metadata.ServiceRestMetadata;
 import org.springframework.cloud.alibaba.dubbo.metadata.resolver.MetadataResolver;
@@ -41,25 +41,27 @@ import java.util.Set;
  *
  * @author <a href="mailto:mercyblitz@gmail.com">Mercy</a>
  */
-@ConditionalOnProperty(value = "spring.cloud.service-registry.auto-registration.enabled", matchIfMissing = true)
-@ConditionalOnMissingBean(value = {
+@ConditionalOnProperty(value = "spring.cloud.service-registry.auto-registration.enabled", matchIfMissing = true) // 要求有 "spring.cloud.service-registry.auto-registration.enabled=true" ，或者不配置。
+@ConditionalOnBean(value = { // 要求存在 MetadataResolver、MetadataConfigService Bean 对象
         MetadataResolver.class,
         MetadataConfigService.class
 })
-@AutoConfigureAfter(value = {DubboMetadataAutoConfiguration.class})
+@AutoConfigureAfter(value = {DubboMetadataAutoConfiguration.class}) // 在 DubboMetadataAutoConfiguration 配置类之后初始化
 @Configuration
 public class DubboRestMetadataRegistrationAutoConfiguration {
 
     /**
      * A Map to store REST metadata temporary, its' key is the special service name for a Dubbo service,
      * the value is a JSON content of JAX-RS or Spring MVC REST metadata from the annotated methods.
+     *
+     * Dubbo Rest Service 方法的元数据（Metadata）集合
      */
     private final Set<ServiceRestMetadata> serviceRestMetadata = new LinkedHashSet<>();
 
-    @Autowired
+    @Autowired // 默认情况下，来自 DubboOpenFeignAutoConfiguration 注册的 DubboServiceBeanMetadataResolver Bean 对象
     private MetadataResolver metadataResolver;
 
-    @Autowired
+    @Autowired // 默认情况下，来自 DubboMetadataAutoConfiguration 注册的 NacosMetadataConfigService Bean 对象
     private MetadataConfigService metadataConfigService;
 
     @EventListener(ServiceBeanExportedEvent.class)

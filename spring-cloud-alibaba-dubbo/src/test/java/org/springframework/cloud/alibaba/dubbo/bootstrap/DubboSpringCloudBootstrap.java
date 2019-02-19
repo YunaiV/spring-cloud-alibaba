@@ -17,7 +17,6 @@
 package org.springframework.cloud.alibaba.dubbo.bootstrap;
 
 import com.alibaba.dubbo.config.annotation.Reference;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
@@ -30,15 +29,16 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
  * Dubbo Spring Cloud Bootstrap
  */
-@EnableDiscoveryClient
-@EnableAutoConfiguration
-@EnableFeignClients
+@EnableDiscoveryClient // 开启注册发现
+@EnableAutoConfiguration // 开启自动配置
+@EnableFeignClients // 开启 Feign Client
 @RestController
 public class DubboSpringCloudBootstrap {
 
@@ -76,23 +76,32 @@ public class DubboSpringCloudBootstrap {
 
     }
 
+    /**
+     * 相比 {@link FeignEchoService} 来说，多了 @DubboTransported 注解
+     */
     @FeignClient("spring-cloud-alibaba-dubbo")
     public interface DubboFeignEchoService {
 
         @GetMapping(value = "/echo")
         @DubboTransported
         String echo(@RequestParam("message") String message);
+
+        @PostMapping(value = "/plus")
+        @DubboTransported
+        String plus(@RequestParam("a") int a, @RequestParam("b") int b);
+
     }
 
     @Bean
     public ApplicationRunner applicationRunner() {
         return arguments -> {
             // Dubbo Service call
-            System.out.println(echoService.echo("mercyblitz"));
+            System.out.println(echoService.echo("mercyblitz：1"));
             // Spring Cloud Open Feign REST Call
-            System.out.println(feignEchoService.echo("mercyblitz"));
+            System.out.println(feignEchoService.echo("mercyblitz：2"));
             // Spring Cloud Open Feign REST Call (Dubbo Transported)
-            System.out.println(dubboFeignEchoService.echo("mercyblitz"));
+            System.out.println(dubboFeignEchoService.echo("mercyblitz：3"));
+            System.out.println(dubboFeignEchoService.plus(1, 2));
         };
     }
 
@@ -100,6 +109,7 @@ public class DubboSpringCloudBootstrap {
         new SpringApplicationBuilder(DubboSpringCloudBootstrap.class)
                 .run(args);
     }
+
 }
 
 

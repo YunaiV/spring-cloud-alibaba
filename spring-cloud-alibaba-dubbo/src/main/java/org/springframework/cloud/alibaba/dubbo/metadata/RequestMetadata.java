@@ -29,8 +29,13 @@ import java.util.Objects;
  */
 public class RequestMetadata {
 
+    /**
+     * 方法名
+     */
     private String method;
-
+    /**
+     * URL 路径
+     */
     private String url;
 
     private Map<String, Collection<String>> queries;
@@ -40,6 +45,7 @@ public class RequestMetadata {
     public RequestMetadata() {
     }
 
+    // 将 RequestTemplate 对象，转换成 RequestMetadata 对象
     public RequestMetadata(RequestTemplate requestTemplate) {
         this.method = requestTemplate.method();
         this.url = requestTemplate.url();

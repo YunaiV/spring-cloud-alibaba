@@ -18,18 +18,14 @@ package org.springframework.cloud.alibaba.dubbo.service;
 
 import com.alibaba.dubbo.config.annotation.Service;
 import com.alibaba.dubbo.rpc.RpcContext;
-
-import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
-import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 
 /**
@@ -38,20 +34,22 @@ import javax.ws.rs.QueryParam;
  * @author <a href="mailto:mercyblitz@gmail.com">Mercy</a>
  */
 @Service(version = "1.0.0", protocol = {"dubbo", "rest"})
-@RestController
-@Path("/")
+@RestController // Spring MVC 注解
+@Path("/") // JSR311 注解
 public class DefaultEchoService implements EchoService {
 
     @Override
     @GetMapping(value = "/echo"
 //            consumes = MediaType.APPLICATION_JSON_VALUE,
 //            produces = MediaType.APPLICATION_JSON_UTF8_VALUE
-    )
-    @Path("/echo")
-    @GET
+    ) // Spring MVC 注解
+    @Path("/echo") // JSR311 注解
+    @GET // JSR311 注解
 //    @Consumes("application/json")
 //    @Produces("application/json;charset=UTF-8")
-    public String echo(@RequestParam @QueryParam("message") String message) {
+    public String echo(@RequestParam // Spring MVC 注解
+                       @QueryParam("message") String message) { // JSR311 注解
+        System.out.println(message);
         return RpcContext.getContext().getUrl() + " [echo] : " + message;
     }
 
@@ -62,4 +60,5 @@ public class DefaultEchoService implements EchoService {
     public String plus(@RequestParam @QueryParam("a") int a, @RequestParam @QueryParam("b") int b) {
         return null;
     }
+
 }

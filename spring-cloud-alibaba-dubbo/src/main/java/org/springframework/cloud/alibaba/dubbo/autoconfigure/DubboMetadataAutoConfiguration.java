@@ -31,10 +31,10 @@ import org.springframework.context.annotation.Import;
  * @author <a href="mailto:mercyblitz@gmail.com">Mercy</a>
  */
 @Configuration
-@Import(DubboServiceMetadataRepository.class)
+@Import(DubboServiceMetadataRepository.class) // 创建了 DubboServiceMetadataRepository Bean 对象
 public class DubboMetadataAutoConfiguration {
 
-    @Bean
+    @Bean // 创建了 NacosMetadataConfigService Bean 对象
     @ConditionalOnBean(NacosConfigProperties.class)
     public MetadataConfigService metadataConfigService() {
         return new NacosMetadataConfigService();

@@ -26,10 +26,17 @@ import java.util.Objects;
  */
 public class MethodParameterMetadata {
 
+    /**
+     * 方法参数的位置
+     */
     private int index;
-
+    /**
+     * 方法参数的名字
+     */
     private String name;
-
+    /**
+     * 方法参数的类型
+     */
     private String type;
 
     public int getIndex() {

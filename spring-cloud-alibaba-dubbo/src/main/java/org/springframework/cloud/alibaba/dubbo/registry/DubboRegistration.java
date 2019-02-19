@@ -29,6 +29,9 @@ import java.util.Map;
  */
 class DubboRegistration implements Registration {
 
+    /**
+     * Spring Cloud ServiceInstance
+     */
     private final ServiceInstance delegate;
 
     public DubboRegistration(ServiceInstance delegate) {
@@ -69,4 +72,5 @@ class DubboRegistration implements Registration {
     public String getScheme() {
         return delegate.getScheme();
     }
+
 }

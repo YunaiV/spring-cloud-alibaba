@@ -27,7 +27,6 @@ import org.springframework.cloud.alibaba.dubbo.metadata.ServiceRestMetadata;
 import org.springframework.cloud.alibaba.nacos.NacosConfigProperties;
 
 import javax.annotation.PostConstruct;
-import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -40,8 +39,14 @@ import static com.alibaba.nacos.api.common.Constants.DEFAULT_GROUP;
  */
 public class NacosMetadataConfigService implements MetadataConfigService {
 
+    /**
+     * ObjectMapper ，使用 Jackson 序列化和反序列化
+     */
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    /**
+     * NacosConfigProperties 对象，用于获得 {@link #configService}
+     */
     @Autowired
     private NacosConfigProperties nacosConfigProperties;
 
@@ -49,7 +54,9 @@ public class NacosMetadataConfigService implements MetadataConfigService {
 
     @PostConstruct
     public void init() {
+        // 初始化 configService 属性
         this.configService = nacosConfigProperties.configServiceInstance();
+        // 开启 JSON 格式化
         this.objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
     }
 
@@ -62,8 +69,11 @@ public class NacosMetadataConfigService implements MetadataConfigService {
 
     @Override
     public void publishServiceRestMetadata(String serviceName, Set<ServiceRestMetadata> serviceRestMetadata) {
+        // 获得 Nacos dataId
         String dataId = getServiceRestMetadataDataId(serviceName);
+        // 将 ServiceRestMetadata 集合序列化成 json 字符串
         String json = writeValueAsString(serviceRestMetadata);
+        // 写入到 Nacos 配置中心
         try {
             configService.publishConfig(dataId, DEFAULT_GROUP, json);
         } catch (NacosException e) {
@@ -73,12 +83,14 @@ public class NacosMetadataConfigService implements MetadataConfigService {
 
     @Override
     public Set<ServiceRestMetadata> getServiceRestMetadata(String serviceName) {
-        Set<ServiceRestMetadata> metadata = Collections.emptySet();
+        Set<ServiceRestMetadata> metadata;
+        // 获得 Nacos dataId
         String dataId = getServiceRestMetadataDataId(serviceName);
         try {
+            // 从 Nacos 配置中心，读取 json 字符串
             String json = configService.getConfig(dataId, DEFAULT_GROUP, 1000 * 3);
-            metadata = objectMapper.readValue(json,
-                    TypeFactory.defaultInstance().constructCollectionType(LinkedHashSet.class, ServiceRestMetadata.class));
+            // 将 json 字符串，反序列化成 ServiceRestMetadata 集合
+            metadata = objectMapper.readValue(json, TypeFactory.defaultInstance().constructCollectionType(LinkedHashSet.class, ServiceRestMetadata.class));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -86,7 +98,7 @@ public class NacosMetadataConfigService implements MetadataConfigService {
     }
 
     private String writeValueAsString(Object object) {
-        String content = null;
+        String content;
         try {
             content = objectMapper.writeValueAsString(object);
         } catch (JsonProcessingException e) {
@@ -94,4 +106,5 @@ public class NacosMetadataConfigService implements MetadataConfigService {
         }
         return content;
     }
+
 }

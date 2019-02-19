@@ -27,8 +27,13 @@ import java.lang.reflect.Method;
  */
 public class DubboTransportedMethodMetadata extends MethodMetadata {
 
+    /**
+     * Dubbo 协议
+     */
     private String protocol;
-
+    /**
+     * Dubbo 容错策略
+     */
     private String cluster;
 
     public DubboTransportedMethodMetadata(Method method) {
@@ -70,4 +75,5 @@ public class DubboTransportedMethodMetadata extends MethodMetadata {
         result = 31 * result + (cluster != null ? cluster.hashCode() : 0);
         return result;
     }
+
 }

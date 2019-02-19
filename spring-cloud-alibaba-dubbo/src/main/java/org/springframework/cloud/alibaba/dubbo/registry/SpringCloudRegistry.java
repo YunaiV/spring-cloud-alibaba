@@ -32,24 +32,12 @@ import org.springframework.cloud.client.serviceregistry.Registration;
 import org.springframework.cloud.client.serviceregistry.ServiceRegistry;
 import org.springframework.util.StringUtils;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import static com.alibaba.dubbo.common.Constants.CONFIGURATORS_CATEGORY;
-import static com.alibaba.dubbo.common.Constants.CONSUMERS_CATEGORY;
-import static com.alibaba.dubbo.common.Constants.PROTOCOL_KEY;
-import static com.alibaba.dubbo.common.Constants.PROVIDERS_CATEGORY;
-import static com.alibaba.dubbo.common.Constants.ROUTERS_CATEGORY;
+import static com.alibaba.dubbo.common.Constants.*;
 
 /**
  * Dubbo {@link RegistryFactory} uses Spring Cloud Service Registration abstraction, whose protocol is "spring-cloud"
@@ -85,8 +73,14 @@ public class SpringCloudRegistry extends FailbackRegistry {
      */
     private static final String SERVICE_NAME_SEPARATOR = ":";
 
+    /**
+     * ServiceRegistry 对象
+     */
     private final ServiceRegistry<Registration> serviceRegistry;
 
+    /**
+     * DiscoveryClient 对象
+     */
     private final DiscoveryClient discoveryClient;
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
@@ -110,26 +104,35 @@ public class SpringCloudRegistry extends FailbackRegistry {
 
     @Override
     protected void doRegister(URL url) {
+        // 获得 serviceName
         final String serviceName = getServiceName(url);
+        // 创建 Registration 对象
         final Registration registration = createRegistration(serviceName, url);
+        // 注册到 serviceRegistry 中
         serviceRegistry.register(registration);
     }
 
     @Override
     protected void doUnregister(URL url) {
+        // 获得 serviceName
         final String serviceName = getServiceName(url);
+        // 创建 Registration 对象
         final Registration registration = createRegistration(serviceName, url);
+        // 取消注册从 serviceRegistry 中
         this.serviceRegistry.deregister(registration);
     }
 
     @Override
     protected void doSubscribe(URL url, NotifyListener listener) {
+        // 获得 serviceName 数组
         List<String> serviceNames = getServiceNames(url, listener);
+        // 执行订阅
         doSubscribe(url, listener, serviceNames);
     }
 
     @Override
     protected void doUnsubscribe(URL url, NotifyListener listener) {
+        // 忽略管理端
         if (isAdminProtocol(url)) {
             shutdownServiceNamesLookup();
         }
@@ -152,23 +155,29 @@ public class SpringCloudRegistry extends FailbackRegistry {
 
     private ServiceInstance createServiceInstance(String serviceName, URL url) {
         // Append default category if absent
+        // 获得属性
         String category = url.getParameter(Constants.CATEGORY_KEY, Constants.DEFAULT_CATEGORY);
         URL newURL = url.addParameter(Constants.CATEGORY_KEY, category);
         newURL = newURL.addParameter(Constants.PROTOCOL_KEY, url.getProtocol());
-        String ip = NetUtils.getLocalHost();
-        int port = newURL.getParameter(Constants.BIND_PORT_KEY, url.getPort());
+        String ip = NetUtils.getLocalHost(); // IP
+        int port = newURL.getParameter(Constants.BIND_PORT_KEY, url.getPort()); // 端口
+        // 创建 DefaultServiceInstance 对象
         DefaultServiceInstance serviceInstance = new DefaultServiceInstance(serviceName, ip, port, false);
         serviceInstance.getMetadata().putAll(new LinkedHashMap<>(newURL.getParameters()));
         return serviceInstance;
     }
 
     public static String getServiceName(URL url) {
+        // 获得分类
         String category = url.getParameter(Constants.CATEGORY_KEY, Constants.DEFAULT_CATEGORY);
+        // 获得 ServiceName
         return getServiceName(url, category);
     }
 
     private static String getServiceName(URL url, String category) {
+        // 创建 StringBuilder 对象
         StringBuilder serviceNameBuilder = new StringBuilder(category);
+        // 拼接 PROTOCOL_KEY、INTERFACE_KEY、VERSION_KEY、GROUP_KEY 参数
         appendIfPresent(serviceNameBuilder, url.getParameter(PROTOCOL_KEY, url.getProtocol()));
         appendIfPresent(serviceNameBuilder, url, Constants.INTERFACE_KEY);
         appendIfPresent(serviceNameBuilder, url, Constants.VERSION_KEY);
@@ -292,6 +301,7 @@ public class SpringCloudRegistry extends FailbackRegistry {
      * @return non-null
      */
     private List<String> getServiceNames(URL url, NotifyListener listener) {
+        // 管理端，暂时无视
         if (isAdminProtocol(url)) {
             scheduleServiceNamesLookup(url, listener);
             return getServiceNamesForOps(url);
@@ -299,7 +309,6 @@ public class SpringCloudRegistry extends FailbackRegistry {
             return doGetServiceNames(url);
         }
     }
-
 
     private boolean isAdminProtocol(URL url) {
         return Constants.ADMIN_PROTOCOL.equals(url.getProtocol());
@@ -334,14 +343,18 @@ public class SpringCloudRegistry extends FailbackRegistry {
 
     private void doSubscribe(final URL url, final NotifyListener listener, final List<String> serviceNames) {
         for (String serviceName : serviceNames) {
+            // 获得 ServiceInstance 数组
             List<ServiceInstance> serviceInstances = discoveryClient.getInstances(serviceName);
+            // 通知订阅
             notifySubscriber(url, listener, serviceInstances);
             // TODO Support Update notification event
         }
     }
 
     private List<String> doGetServiceNames(URL url) {
+        // 获得 category 数组
         String[] categories = getCategories(url);
+        // 创建 serviceName 数组，并进行获得
         List<String> serviceNames = new ArrayList<String>(categories.length);
         for (String category : categories) {
             final String serviceName = getServiceName(url, category);
@@ -358,10 +371,13 @@ public class SpringCloudRegistry extends FailbackRegistry {
      * @param serviceInstances all {@link ServiceInstance instances}
      */
     private void notifySubscriber(URL url, NotifyListener listener, List<ServiceInstance> serviceInstances) {
+        // 过滤掉非健康的 Dubbo 服务
         List<ServiceInstance> healthyInstances = new LinkedList<ServiceInstance>(serviceInstances);
         // Healthy Instances
         filterHealthyInstances(healthyInstances);
+        // 创建 URL 数组
         List<URL> urls = buildURLs(url, healthyInstances);
+        // 通知订阅者
         this.notify(url, listener, urls);
     }
 
@@ -377,11 +393,14 @@ public class SpringCloudRegistry extends FailbackRegistry {
     }
 
     private List<URL> buildURLs(URL consumerURL, Collection<ServiceInstance> serviceInstances) {
+        // serviceInstances 为空，返回空数组
         if (serviceInstances.isEmpty()) {
             return Collections.emptyList();
         }
-        List<URL> urls = new LinkedList<URL>();
+        // serviceInstances 非空，则逐个构建对应的 URL 对象，添加到 urls 中进行返回
+        List<URL> urls = new LinkedList<>();
         for (ServiceInstance serviceInstance : serviceInstances) {
+            // 构建 URL 对象
             URL url = buildURL(serviceInstance);
             if (UrlUtils.isMatch(consumerURL, url)) {
                 urls.add(url);
@@ -391,11 +410,10 @@ public class SpringCloudRegistry extends FailbackRegistry {
     }
 
     private URL buildURL(ServiceInstance serviceInstance) {
-        URL url = new URL(serviceInstance.getMetadata().get(Constants.PROTOCOL_KEY),
+        return new URL(serviceInstance.getMetadata().get(Constants.PROTOCOL_KEY),
                 serviceInstance.getHost(),
                 serviceInstance.getPort(),
                 serviceInstance.getMetadata());
-        return url;
     }
 
     /**
@@ -411,13 +429,8 @@ public class SpringCloudRegistry extends FailbackRegistry {
     }
 
     private <T> void filter(Collection<T> collection, Filter<T> filter) {
-        Iterator<T> iterator = collection.iterator();
-        while (iterator.hasNext()) {
-            T data = iterator.next();
-            if (!filter.accept(data)) { // remove if not accept
-                iterator.remove();
-            }
-        }
+        // remove if not accept
+        collection.removeIf(data -> !filter.accept(data));
     }
 
     private static <T> T[] of(T... values) {

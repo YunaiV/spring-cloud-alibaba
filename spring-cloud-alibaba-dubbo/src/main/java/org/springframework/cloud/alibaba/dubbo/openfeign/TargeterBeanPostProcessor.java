@@ -21,10 +21,9 @@ import org.springframework.beans.factory.BeanClassLoaderAware;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.cloud.alibaba.dubbo.metadata.repository.DubboServiceMetadataRepository;
 import org.springframework.core.env.Environment;
+import org.springframework.util.ClassUtils;
 
-import static java.lang.reflect.Proxy.newProxyInstance;
-import static org.springframework.util.ClassUtils.getUserClass;
-import static org.springframework.util.ClassUtils.resolveClassName;
+import java.lang.reflect.Proxy;
 
 /**
  * org.springframework.cloud.openfeign.Targeter {@link BeanPostProcessor}
@@ -41,8 +40,7 @@ public class TargeterBeanPostProcessor implements BeanPostProcessor, BeanClassLo
 
     private ClassLoader classLoader;
 
-    public TargeterBeanPostProcessor(Environment environment,
-                                     DubboServiceMetadataRepository dubboServiceMetadataRepository) {
+    public TargeterBeanPostProcessor(Environment environment, DubboServiceMetadataRepository dubboServiceMetadataRepository) {
         this.environment = environment;
         this.dubboServiceMetadataRepository = dubboServiceMetadataRepository;
     }
@@ -54,10 +52,13 @@ public class TargeterBeanPostProcessor implements BeanPostProcessor, BeanClassLo
 
     @Override
     public Object postProcessAfterInitialization(final Object bean, String beanName) throws BeansException {
-        Class<?> beanClass = getUserClass(bean.getClass());
-        Class<?> targetClass = resolveClassName(TARGETER_CLASS_NAME, classLoader);
+        // 获得 Bean 的类
+        Class<?> beanClass = ClassUtils.getUserClass(bean.getClass());
+        // 获得 openfeign Targeter 接口
+        Class<?> targetClass = ClassUtils.resolveClassName(TARGETER_CLASS_NAME, classLoader);
+        // 如果实现 openfeign Targeter 接口，则创建动态代理
         if (targetClass.isAssignableFrom(beanClass)) {
-            return newProxyInstance(classLoader, new Class[]{targetClass},
+            return Proxy.newProxyInstance(classLoader, new Class[]{targetClass},
                     new TargeterInvocationHandler(bean, environment, dubboServiceMetadataRepository));
         }
         return bean;
@@ -67,4 +68,5 @@ public class TargeterBeanPostProcessor implements BeanPostProcessor, BeanClassLo
     public void setBeanClassLoader(ClassLoader classLoader) {
         this.classLoader = classLoader;
     }
+
 }

@@ -19,7 +19,6 @@ package org.springframework.cloud.alibaba.dubbo.openfeign;
 
 import com.alibaba.dubbo.config.spring.ReferenceBean;
 import com.alibaba.dubbo.rpc.service.GenericService;
-
 import feign.Contract;
 import feign.Target;
 import org.springframework.cloud.alibaba.dubbo.metadata.DubboTransportedMethodMetadata;
@@ -34,8 +33,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.Map;
-
-import static java.lang.reflect.Proxy.newProxyInstance;
 
 /**
  * org.springframework.cloud.openfeign.Targeter {@link InvocationHandler}
@@ -68,70 +65,74 @@ class TargeterInvocationHandler implements InvocationHandler {
         FeignContext feignContext = cast(args[2]);
         Target.HardCodedTarget<?> target = cast(args[3]);
 
+        // 先调用原有 target 方法，返回默认的代理对象
         // Execute Targeter#target method first
         method.setAccessible(true);
         // Get the default proxy object
         Object defaultProxy = method.invoke(bean, args);
         // Create Dubbo Proxy if required
+        // 如果符合创建 Dubbo 代理对象，则创建 Dubbo 代理对象。
+        // 否则，使用默认的 defaultProxy 代理
         return createDubboProxyIfRequired(feignContext, target, defaultProxy);
     }
 
     private Object createDubboProxyIfRequired(FeignContext feignContext, Target target, Object defaultProxy) {
-
+        // 尝试创建 DubboInvocationHandler
         DubboInvocationHandler dubboInvocationHandler = createDubboInvocationHandler(feignContext, target, defaultProxy);
-
+        // 如果未创建成功，说明不符合条件，则返回默认的 defaultProxy 代理
         if (dubboInvocationHandler == null) {
             return defaultProxy;
         }
-
-        return newProxyInstance(target.type().getClassLoader(), new Class<?>[]{target.type()}, dubboInvocationHandler);
+        // 如果创建成功，说明符合条件，则创建使用 dubboInvocationHandler 的动态代理
+        return Proxy.newProxyInstance(target.type().getClassLoader(), new Class<?>[]{target.type()}, dubboInvocationHandler);
     }
 
-    private DubboInvocationHandler createDubboInvocationHandler(FeignContext feignContext, Target target,
-                                                                Object defaultFeignClientProxy) {
-
+    private DubboInvocationHandler createDubboInvocationHandler(FeignContext feignContext, Target target, Object defaultFeignClientProxy) {
         // Service name equals @FeignClient.name()
         String serviceName = target.name();
         Class<?> targetType = target.type();
 
         // Get Contract Bean from FeignContext
+        // 获得 Feign Contract
         Contract contract = feignContext.getInstance(serviceName, Contract.class);
 
-        DubboTransportedMethodMetadataResolver resolver =
-                new DubboTransportedMethodMetadataResolver(environment, contract);
-
+        // 创建 DubboTransportedMethodMetadataResolver 对象
+        DubboTransportedMethodMetadataResolver resolver = new DubboTransportedMethodMetadataResolver(environment, contract);
+        // 解析指定类，获得其 DubboTransportedMethodMetadata 和 RequestMetadata 的映射
         Map<DubboTransportedMethodMetadata, RequestMetadata> methodRequestMetadataMap = resolver.resolve(targetType);
-
+        // 如果为空，则返回，说明不符合条件
         if (methodRequestMetadataMap.isEmpty()) { // @DubboTransported method was not found
             return null;
         }
 
         // Update Metadata
+        // 初始化指定 `serviceName` 的元数据。此处，会从配置中心，获得元数据
         dubboServiceMetadataRepository.updateMetadata(serviceName);
 
         Map<Method, org.springframework.cloud.alibaba.dubbo.metadata.MethodMetadata> methodMetadataMap = new HashMap<>();
-
         Map<Method, GenericService> genericServicesMap = new HashMap<>();
-
+        // 遍历 methodRequestMetadataMap 集合，初始化其 GenericService
         methodRequestMetadataMap.forEach((dubboTransportedMethodMetadata, requestMetadata) -> {
+            // 获得 ReferenceBean 对象，并初始化其属性
             ReferenceBean<GenericService> referenceBean = dubboServiceMetadataRepository.getReferenceBean(serviceName, requestMetadata);
-            org.springframework.cloud.alibaba.dubbo.metadata.MethodMetadata methodMetadata =
-                    dubboServiceMetadataRepository.getMethodMetadata(serviceName, requestMetadata);
             referenceBean.setProtocol(dubboTransportedMethodMetadata.getProtocol());
             referenceBean.setCluster(dubboTransportedMethodMetadata.getCluster());
+            // 添加到 genericServicesMap 中
             genericServicesMap.put(dubboTransportedMethodMetadata.getMethod(), referenceBean.get());
+            // 获得 MethodMetadata 对象
+            org.springframework.cloud.alibaba.dubbo.metadata.MethodMetadata methodMetadata = dubboServiceMetadataRepository.getMethodMetadata(serviceName, requestMetadata);
+            // 添加到 methodMetadataMap 中
             methodMetadataMap.put(dubboTransportedMethodMetadata.getMethod(), methodMetadata);
         });
 
+        // 获得默认的 defaultFeignClientProxy 中，默认的 InvocationHandler 对象
         InvocationHandler defaultFeignClientInvocationHandler = Proxy.getInvocationHandler(defaultFeignClientProxy);
-
-        DubboInvocationHandler dubboInvocationHandler = new DubboInvocationHandler(genericServicesMap, methodMetadataMap,
-                defaultFeignClientInvocationHandler);
-
-        return dubboInvocationHandler;
+        // 创建 DubboInvocationHandler 对象
+        return new DubboInvocationHandler(genericServicesMap, methodMetadataMap, defaultFeignClientInvocationHandler);
     }
 
     private static <T> T cast(Object object) {
         return (T) object;
     }
+
 }

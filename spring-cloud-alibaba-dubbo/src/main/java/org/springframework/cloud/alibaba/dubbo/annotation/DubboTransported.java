@@ -47,12 +47,14 @@ import java.lang.annotation.Target;
  * @see LoadBalanced
  */
 @Retention(RetentionPolicy.RUNTIME)
-@Target(value = {ElementType.TYPE, ElementType.FIELD, ElementType.METHOD, ElementType.PARAMETER})
+@Target(value = {ElementType.TYPE, ElementType.FIELD, ElementType.METHOD, ElementType.PARAMETER}) // 支持类、方法
 @Documented
 public @interface DubboTransported {
 
     /**
      * The protocol of Dubbo transport whose value could be used the placeholder "dubbo.transport.protocol"
+     *
+     * 使用的 Dubbo 协议，默认为 "dubbo"
      *
      * @return the default protocol is "dubbo"
      */
@@ -61,7 +63,10 @@ public @interface DubboTransported {
     /**
      * The cluster of Dubbo transport whose value could be used the placeholder "dubbo.transport.cluster"
      *
+     * 使用的集群容错方式，默认为 "failover"
+     *
      * @return the default protocol is "failover"
      */
     String cluster() default "${dubbo.transport.cluster:failover}";
+
 }

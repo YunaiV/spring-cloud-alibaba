@@ -57,14 +57,22 @@ public class DubboServiceBeanMetadataResolver implements BeanClassLoaderAware, S
             "org.springframework.cloud.openfeign.support.SpringMvcContract",
     };
 
+    /**
+     * 当前应用名
+     *
+     * 不过，目前暂时并未用该参数
+     */
     private final String currentApplicationName;
-
+    /**
+     * 当前类加载器
+     */
+    private ClassLoader classLoader;
     private final ObjectProvider<Contract> contract;
 
-    private ClassLoader classLoader;
-
     /**
-     * Feign Contracts
+     * Feign Contract 数组
+     *
+     * https://www.jianshu.com/p/6582f8319f72
      */
     private Collection<Contract> contracts;
 
@@ -75,46 +83,53 @@ public class DubboServiceBeanMetadataResolver implements BeanClassLoaderAware, S
 
     @Override
     public void afterSingletonsInstantiated() {
-
+        // 创建 Feign Contract 数组
         LinkedList<Contract> contracts = new LinkedList<>();
 
         // Add injected Contract if available, for example SpringMvcContract Bean under Spring Cloud Open Feign
+        // 如果 contract 存在，则添加到 contracts 中
         contract.ifAvailable(contracts::add);
 
+        // 遍历 CONTRACT_CLASS_NAMES 数组，创建对应的 Contract 对象，添加到 contracts 中
         Stream.of(CONTRACT_CLASS_NAMES)
                 .filter(this::isClassPresent) // filter the existed classes
                 .map(this::loadContractClass) // load Contract Class
                 .map(this::createContract)    // create instance by the specified class
                 .forEach(contracts::add);     // add the Contract instance into contracts
 
+        // 赋值给 contracts 中
         this.contracts = Collections.unmodifiableCollection(contracts);
     }
 
+    // 创建 Contract 对象
     private Contract createContract(Class<?> contractClassName) {
         return (Contract) BeanUtils.instantiateClass(contractClassName);
     }
 
+    // 加载 contractClassName 对应的 Contract 实现类
     private Class<?> loadContractClass(String contractClassName) {
         return ClassUtils.resolveClassName(contractClassName, classLoader);
     }
 
+    // 判断指定 className 类是否存在
     private boolean isClassPresent(String className) {
         return ClassUtils.isPresent(className, classLoader);
     }
 
     @Override
     public Set<ServiceRestMetadata> resolveServiceRestMetadata(ServiceBean serviceBean) {
-
+        // 获得应用的 Bean 对象
         Object bean = serviceBean.getRef();
-
+        // 获得 Bean 类型
         Class<?> beanType = bean.getClass();
-
-        Set<ServiceRestMetadata> serviceRestMetadata = new LinkedHashSet<>();
-
+        // 解析 Bean 类型对应的 RestMethodMetadata 集合
         Set<RestMethodMetadata> methodRestMetadata = resolveMethodRestMetadata(beanType);
 
+        // 创建 ServiceRestMetadata 数组
+        Set<ServiceRestMetadata> serviceRestMetadata = new LinkedHashSet<>();
+        // 获得 ServiceBean 暴露的 URL 集合
         List<URL> urls = serviceBean.getExportedUrls();
-
+        // 遍历 URL 集合，将 RestMethodMetadata 集合，封装成 ServiceRestMetadata 对象，然后添加到 serviceRestMetadata 中，最后返回。
         urls.stream()
                 .map(SpringCloudRegistry::getServiceName)
                 .forEach(serviceName -> {
@@ -123,18 +138,19 @@ public class DubboServiceBeanMetadataResolver implements BeanClassLoaderAware, S
                     metadata.setMeta(methodRestMetadata);
                     serviceRestMetadata.add(metadata);
                 });
-
         return serviceRestMetadata;
     }
 
     @Override
     public Set<RestMethodMetadata> resolveMethodRestMetadata(Class<?> targetType) {
+        // 获得 Method 集合
         List<Method> feignContractMethods = selectFeignContractMethods(targetType);
-        return contracts.stream()
-                .map(contract -> contract.parseAndValidatateMetadata(targetType))
-                .flatMap(v -> v.stream())
-                .map(methodMetadata -> resolveMethodRestMetadata(methodMetadata, targetType, feignContractMethods))
-                .collect(Collectors.toSet());
+        // 转换成 RestMethodMetadata 集合
+        return contracts.stream() // 遍历 contracts 数组
+                .map(contract -> contract.parseAndValidatateMetadata(targetType)) // 返回目标类型的 Feign MethodMetadata 数组
+                .flatMap(Collection::stream)
+                .map(methodMetadata -> resolveMethodRestMetadata(methodMetadata, targetType, feignContractMethods)) // 将 Feign MethodMetadata 转换成 RestMethodMetadata 对象
+                .collect(Collectors.toSet()); // 转换成 Set ，可以带来排重的效果
     }
 
     /**
@@ -147,10 +163,12 @@ public class DubboServiceBeanMetadataResolver implements BeanClassLoaderAware, S
      */
     private List<Method> selectFeignContractMethods(Class<?> targetType) {
         List<Method> methods = new LinkedList<>();
+        // 遍历目标的方法
         for (Method method : targetType.getMethods()) {
-            if (method.getDeclaringClass() == Object.class ||
-                    (method.getModifiers() & Modifier.STATIC) != 0 ||
-                    Util.isDefault(method)) {
+            // 忽略
+            if (method.getDeclaringClass() == Object.class || // Object 声明的方法，例如说 equals 方法
+                    (method.getModifiers() & Modifier.STATIC) != 0 || // 静态方法
+                    Util.isDefault(method)) { // Feign 默认方法
                 continue;
             }
             methods.add(method);
@@ -158,24 +176,28 @@ public class DubboServiceBeanMetadataResolver implements BeanClassLoaderAware, S
         return methods;
     }
 
-    protected RestMethodMetadata resolveMethodRestMetadata(MethodMetadata methodMetadata, Class<?> targetType,
+    protected RestMethodMetadata resolveMethodRestMetadata(MethodMetadata methodMetadata, // Feign MethodMetadata
+                                                           Class<?> targetType,
                                                            List<Method> feignContractMethods) {
+        // 获得 configKey 。例如说：DefaultEchoService#echo(String)
         String configKey = methodMetadata.configKey();
+        // 获得匹配的 Method
         Method feignContractMethod = getMatchedFeignContractMethod(targetType, feignContractMethods, configKey);
-
+        // 创建 RestMethodMetadata 对象，并设置其属性
         RestMethodMetadata metadata = new RestMethodMetadata();
-
         metadata.setRequest(new RequestMetadata(methodMetadata.template()));
         metadata.setMethod(new org.springframework.cloud.alibaba.dubbo.metadata.MethodMetadata(feignContractMethod));
         metadata.setIndexToName(methodMetadata.indexToName());
-
         return metadata;
     }
 
     private Method getMatchedFeignContractMethod(Class<?> targetType, List<Method> methods, String expectedConfigKey) {
         Method matchedMethod = null;
+        // 遍历 Method 集合
         for (Method method : methods) {
+            // 获得该方法的 configKey
             String configKey = Feign.configKey(targetType, method);
+            // 如果相等，则进行返回。
             if (expectedConfigKey.equals(configKey)) {
                 matchedMethod = method;
                 break;
